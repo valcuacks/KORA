@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title></title>
+	<meta charset="utf-8">
+	<meta name="generator" content="Three.js Editor">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link rel="stylesheet" href="css/app.css">
+
+	<script type="importmap">
+	{
+		"imports": {
+			"three": "./js/three.compat.js",
+			"three/addons/": "./js/addons/",
+			"mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+		}
+	}
+	</script>
+
+	<script type="module">
+		import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/loaders/GLTFLoader.js';
+		window.ThreeGLTFLoader = GLTFLoader;
+	</script>
+
+    <style>
+        .kora-card {
+            --kora-bg:  #F2F2F2;
+            --kora-line: #F85FAF;
+            position: fixed;
+            z-index: 9999;
+            left: 50%;
+            bottom: max(22px, env(safe-area-inset-bottom));
+            width: min(88vw, 440px);
+            max-height: 62dvh;
+            overflow-y: auto;
+            box-sizing: border-box;
+            padding: 26px 26px 20px;
+            background: var(--kora-bg);
+            border: 5px solid var(--kora-line);
+            border-radius: 18px;
+            box-shadow: 0 12px 38px rgba(44, 27, 40, .20);
+            color: #211b20;
+            font-family: Georgia, 'Times New Roman', serif;
+            transform: translate(-50%, 20px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: transform .25s ease, opacity .25s ease, visibility .25s;
+        }
+        .kora-card.is-visible {
+            transform: translate(-50%, 0);
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        .kora-card[data-product="labial"] { --kora-bg: #F2F2F2; --kora-line: #97DAD5; }
+        .kora-card[data-product="crema"] { --kora-bg: #F2F2F2; --kora-line:  #FFF1C9; }
+        .kora-eyebrow { font: 600 10px/1.4 Arial, sans-serif; letter-spacing: 2px; margin-bottom: 10px; opacity: .65; }
+        .kora-card h2 { margin: 0 34px 14px 0; font-size: 27px; font-weight: 400; }
+        .kora-card p { font: 13px/1.6 Arial, sans-serif; margin: 0 0 12px; }
+        .kora-card .kora-detail { margin-bottom: 6px; }
+        .kora-card .kora-phrase { font: italic 19px/1.4 Georgia, serif; text-align: center; margin: 20px 0 0; }
+        .kora-close { position: absolute; top: 12px; right: 14px; width: 36px; height: 36px; border: 0; background: rgba(255,255,255,.6); border-radius: 50%; font: 28px/1 Arial, sans-serif; color: #292329; cursor: pointer; }
+        @media (max-width: 420px) { .kora-card { padding: 22px 20px 18px; } .kora-card h2 { font-size: 24px; } }
+
+        /* Pantalla de bienvenida KORA: logo cromado y botón rosa */
+        #overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            background: #ffffff !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 16px !important;
+            box-sizing: border-box;
+            padding: 24px;
+        }
+        #overlay.hidden {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+        .kora-start-logo {
+            display: block;
+            width: min(88vw, 470px);
+            max-height: 45vh;
+            height: auto;
+            object-fit: contain;
+        }
+        #start-button {
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            min-width: 130px;
+            padding: 10px 30px !important;
+            background: #F85FAF !important;
+            color: #ffffff !important;
+            border: none !important;
+            border-radius: 14px !important;
+            font: bold 20px/1.2 Georgia, 'Times New Roman', serif !important;
+            letter-spacing: normal !important;
+            text-transform: none !important;
+            text-shadow: none !important;
+            box-shadow: none !important;
+            cursor: pointer;
+        }
+        #start-button:active { transform: scale(.97); }
+    </style>
+</head>
+
+<body ontouchstart="">
+
+	<div id="ar-container"></div>
+
+    <!-- Fichas interactivas de KORA -->
+    <section id="kora-card" class="kora-card" role="dialog" aria-modal="false" aria-labelledby="kora-title" aria-hidden="true">
+        <button id="kora-close" class="kora-close" type="button" aria-label="Cerrar información">&times;</button>
+        <div class="kora-eyebrow">KORA · BEAUTY EXPERIENCE</div>
+        <h2 id="kora-title"></h2>
+        <p id="kora-description"></p>
+        <p class="kora-detail"><strong>Contenido:</strong> <span id="kora-content"></span></p>
+        <p class="kora-detail"><strong>Uso:</strong> <span id="kora-use"></span></p>
+        <p id="kora-phrase" class="kora-phrase"></p>
+    </section>
+
+
+	<div class="log" id="log">asdasdsa</div>
+
+	<div id="overlay">
+		<img src="assets/kora-logo.png" alt="KORA" class="kora-start-logo">
+		<button id="start-button">Iniciar</button>
+		<div id="progress-container">
+			<div id="progress-bar-track">
+				<div id="progress-bar-fill"></div>
+			</div>
+			<div id="progress-label">Cargando... 0%</div>
+		</div>
+	</div>
+
+	<script type="module">
+
+		import * as THREE from './js/three.module.js';
+		import { APP } from './js/app.js';
+		import { MindARController } from './js/mindar/mindar_controller.js';
+
+		window.THREE = THREE; // Used by APP Scripts.
+
+		const log = document.getElementById('log');
+		const overlay = document.getElementById('overlay');
+		const startButton = document.getElementById('start-button');
+		const arContainer = document.getElementById('ar-container');
+		const progressContainer = document.getElementById('progress-container');
+		const progressFill = document.getElementById('progress-bar-fill');
+		const progressLabel = document.getElementById('progress-label');
+
+
+        // Textos de las tres fichas de KORA.
+        const koraProducts = {
+            perfume: {
+                title: 'PERFUME',
+                description: 'Una fragancia cítrica y frutal, con notas frescas y un toque floral delicado. Su aroma es ligero, femenino y ligeramente dulce, ideal para usar todos los días.',
+                content: '50 ml',
+                use: 'Aplica sobre puntos de pulso como cuello y muñecas.',
+                phrase: 'Un toque que deja tu esencia.'
+            },
+            labial: {
+                title: 'Bálsamo Labial',
+                description: 'Un bálsamo de textura suave y cremosa que hidrata los labios mientras deja un toque de color rosado. Su acabado es natural, ligero y luminoso, ideal para darle vida a los labios.',
+                content: '3,5 g',
+                use: 'Desliza directamente sobre los labios y reaplica cuando quieras intensificar el color.',
+                phrase: 'Un toque de color, muy tú.'
+            },
+            crema: {
+                title: 'Crema Facial',
+                description: 'Crema facial de textura ligera pensada para aportar hidratación y suavidad a la piel sin dejar una sensación pesada. Los hidratantes cosméticos ayudan a mantener el contenido de agua de la piel y a reducir su pérdida.',
+                content: '50 ml',
+                use: 'Aplica una pequeña cantidad sobre el rostro limpio y masajea suavemente hasta que se absorba.',
+                phrase: 'Un toque de cuidado para todos los días.'
+            }
+        };
+
+        const koraCard = document.getElementById('kora-card');
+        const koraClose = document.getElementById('kora-close');
+
+        function mostrarProducto(tipo) {
+            const product = koraProducts[tipo];
+            if (!product) return;
+            document.getElementById('kora-title').textContent = product.title;
+            document.getElementById('kora-description').textContent = product.description;
+            document.getElementById('kora-content').textContent = product.content;
+            document.getElementById('kora-use').textContent = product.use;
+            document.getElementById('kora-phrase').textContent = product.phrase;
+            koraCard.dataset.product = tipo;
+            koraCard.classList.add('is-visible');
+            koraCard.setAttribute('aria-hidden', 'false');
+        }
+
+        function cerrarProducto() {
+            koraCard.classList.remove('is-visible');
+            koraCard.setAttribute('aria-hidden', 'true');
+        }
+
+        // Impide que tocar la ficha active accidentalmente otro objeto de AR.
+        koraCard.addEventListener('pointerdown', (event) => event.stopPropagation());
+        koraCard.addEventListener('click', (event) => event.stopPropagation());
+        koraClose.addEventListener('click', cerrarProducto);
+        window.mostrarProducto = mostrarProducto;
+
+        function configurarBotonesKora(player) {
+            const arContent = player.scene.getObjectByName('ARContent');
+            if (!arContent) {
+                console.warn('KORA: no se encontró ARContent');
+                return;
+            }
+
+            // Los tres planos del JSON están ordenados de izquierda a derecha.
+            const buttons = [
+                { uuid: '1a909373-29c3-4691-a9a4-262c704521fd', type: 'perfume' },
+                { uuid: '0a23f2d7-c498-43d8-92a8-7c65b970f436', type: 'labial' },
+                { uuid: 'd448472f-22f2-442e-b5f1-2c79c1a46617', type: 'crema' }
+            ];
+
+            for (const button of buttons) {
+                const mesh = arContent.getObjectByProperty('uuid', button.uuid);
+                if (!mesh) {
+                    console.warn('KORA: no se encontró el plano de', button.type);
+                    continue;
+                }
+                // Conserva el sonido configurado en Three.js Editor.
+                const originalOnClick = mesh.onClick;
+                mesh.onClick = function (...args) {
+                    if (typeof originalOnClick === 'function') {
+                        originalOnClick.apply(this, args);
+                    }
+                    mostrarProducto(button.type);
+                };
+                console.log('KORA: botón configurado:', button.type);
+            }
+        }
+
+		const debugMode = new URLSearchParams(location.search).get('debug') === '1';
+
+		let player = null;
+		let mindarController = null;
+		let loaded = false;
+		let loadPromise = null;
+
+		function setProgress(percent, text) {
+			progressFill.style.width = `${percent}%`;
+			progressLabel.textContent = `${text} ${percent}%`;
+		}
+
+		async function loadEverything() {
+
+			if (loadPromise) return loadPromise;
+
+			loadPromise = (async () => {
+
+				setProgress(0, 'Cargando escena...');
+
+				// Descarga app.json con progreso real (0% - 25%)
+				const text = await new Promise((resolve, reject) => {
+					const loader = new THREE.FileLoader();
+					loader.load(
+						'app37.json',
+						(t) => resolve(t),
+						(e) => {
+							if (e.lengthComputable) {
+								const p = Math.round((e.loaded / e.total) * 25);
+								setProgress(p, 'Cargando escena...');
+							}
+						},
+						(err) => reject(new Error(err.statusText || 'No se pudo descargar el json'))
+					);
+				});
+
+				player = new APP.Player({ alpha: true });
+				await player.load(JSON.parse(text));
+				configurarBotonesKora(player);
+				player.setSize(window.innerWidth, window.innerHeight);
+				player.play();
+				setProgress(55, 'Escena lista...');
+
+				document.body.appendChild(player.dom);
+
+				window.addEventListener('resize', function () {
+					player.setSize(window.innerWidth, window.innerHeight);
+				});
+
+				window.player = player;
+
+				setProgress(85, 'Preparando AR...');
+				log.textContent = 'initializing...';
+
+				await new Promise((resolve) => setTimeout(resolve, 10));
+
+				setProgress(100, 'Listo');
+				loaded = true;
+
+				console.log(window.player);
+
+			})().catch((e) => {
+				loaded = false;
+				loadPromise = null; // permite reintentar al pulsar el botón
+				throw e;
+			});
+
+			return loadPromise;
+		}
+
+		// Al darle al botón start se inicia la cámara (requiere gesto del usuario).
+		startButton.addEventListener('click', async () => {
+
+			progressContainer.style.display = 'flex';
+
+			try {
+				await loadEverything();
+				if (!loaded) return;
+
+				setProgress(90, 'Iniciando cámara...');
+
+				// La cámara se inicia aquí, dentro del gesto del usuario.
+				mindarController = new MindARController(arContainer, player, debugMode);
+				window.mindarController = mindarController;
+
+				await mindarController.start();
+
+				// El player sigue funcionando (scripts/audio) pero su canvas ya no se usa.
+				if (player?.dom) player.dom.style.display = 'none';
+
+				overlay.classList.add('hidden');
+				setTimeout(() => overlay.remove(), 400);
+			} catch (e) {
+				console.error('Error durante la carga:', e);
+				startButton.textContent = 'Reintentar';
+				setProgress(0, 'Error al iniciar');
+			}
+		});
+
+		// Todo se carga automáticamente al abrir la página.
+		loadEverything().catch((e) => {
+			console.error('Error durante la carga automática:', e.message);
+			progressContainer.style.display = 'flex';
+			setProgress(0, 'Error al cargar');
+			startButton.textContent = 'Reintentar';
+		});
+
+	</script>
+</body>
+
+</html>
